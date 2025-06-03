@@ -1,5 +1,5 @@
-from core.utils.frame_utils import get_scared_file_pairs
-from core.utils.frame_utils import read_image
+from core.utils.utils_dataloader import get_scared_file_pairs
+from core.utils.utils_dataloader import read_image
 
 class RandomFlip:
     """Random horizontal or vertical flip"""
