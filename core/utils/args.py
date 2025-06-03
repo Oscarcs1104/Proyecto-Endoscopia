@@ -45,7 +45,14 @@ def Args():
     parser.add_argument('--do_flip', default=False, choices=['h', 'v'], help='flip the images horizontally or vertically')
     parser.add_argument('--spatial_scale', type=float, nargs='+', default=[-0.4, 0.8], help='re-scale the images randomly')
     parser.add_argument('--noyjitter', action='store_true', help='don\'t simulate imperfect rectification')
-    args = parser.parse_args()
+    
+    try:
+        args, unknown = parser.parse_known_args()
+        if unknown:
+            logging.warning(f"Unknown arguments ignored: {unknown}")
+    except SystemExit:
+        # Evita que argparse cierre el programa en entornos como Jupyter/Colab
+        return None
 
     torch.manual_seed(666)
     np.random.seed(666)
