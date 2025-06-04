@@ -1,5 +1,5 @@
 from core import igev_stereo
-from igev_stereo import IGEVStereo
+from core.igev_stereo import IGEVStereo
 from core.utils.args import Args
 from peft import LoraConfig, TaskType, get_peft_model
 
