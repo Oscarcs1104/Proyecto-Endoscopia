@@ -23,7 +23,7 @@ target_modules_candidates = [
 ]
 
 
-def IGEVStereoLoraModel(args):
+def IGEVStereoLoraModel(arguments):
 
     actual_target_modules = []
     for name, module in model.named_modules():
@@ -45,7 +45,7 @@ def IGEVStereoLoraModel(args):
         task_type=TaskType.FEATURE_EXTRACTION
     )
 
-    model = IGEVStereo(args)
+    model = IGEVStereo(arguments)
     model_with_lora = get_peft_model(model, peft_config)
     return model_with_lora
 
