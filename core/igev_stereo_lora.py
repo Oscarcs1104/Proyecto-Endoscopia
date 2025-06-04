@@ -6,10 +6,6 @@ import torch
 import torch.nn as nn
 
 
-args = Args()
-
-model = igev_stereo.IGEVStereo(args) 
-
 target_modules_candidates = [
     ".conv",  # Catches many convolutional layers
     ".conv1",
@@ -27,29 +23,8 @@ target_modules_candidates = [
     "gru.weight_hh"
 ]
 
-actual_target_modules = []
-for name, module in model.named_modules():
-    for candidate in target_modules_candidates:
-        if candidate in name and isinstance(module, (nn.Linear, nn.Conv2d)):
-            # Filter by actual layer types LoRA can modify
-            actual_target_modules.append(name)
-            # Break to avoid adding the same module multiple times if multiple candidates match
-            break
-print(f"Discovered LoRA target modules: {actual_target_modules}")
-print(f"Total LoRA target modules: {len(actual_target_modules)}")
 
-
-peft_config = LoraConfig(
-    target_modules=actual_target_modules,
-    lora_dropout=0.1,
-    bias="none",
-    r=4,
-    lora_alpha=16,
-    task_type=TaskType.FEATURE_EXTRACTION,
-
-)
-
-def IGEVStereoLoraModel():
+def IGEVStereoLoraModel(args):
     """
     Initialize the IGEV Stereo model with LoRA configuration.
     
@@ -59,6 +34,26 @@ def IGEVStereoLoraModel():
     Returns:
         Model with LoRA applied.
     """
+    actual_target_modules = []
+    for name, module in model.named_modules():
+        for candidate in target_modules_candidates:
+            if candidate in name and isinstance(module, (nn.Linear, nn.Conv2d)):
+                # Filter by actual layer types LoRA can modify
+                actual_target_modules.append(name)
+                # Break to avoid adding the same module multiple times if multiple candidates match
+                break
+    print(f"Discovered LoRA target modules: {actual_target_modules}")
+    print(f"Total LoRA target modules: {len(actual_target_modules)}")
+
+    peft_config = LoraConfig(
+    target_modules=actual_target_modules,
+    lora_dropout=0.1,
+    bias="none",
+    r=4,
+    lora_alpha=16,
+    task_type=TaskType.FEATURE_EXTRACTION,
+    )
+
     model = IGEVStereo(args)
     model_with_lora = get_peft_model(model, peft_config)
     return model_with_lora, args
