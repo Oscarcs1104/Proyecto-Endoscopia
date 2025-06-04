@@ -24,7 +24,7 @@ target_modules_candidates = [
 
 
 def IGEVStereoLoraModel(arguments):
-
+    print("hola")
     actual_target_modules = []
     for name, module in model.named_modules():
         for candidate in target_modules_candidates:
@@ -47,6 +47,7 @@ def IGEVStereoLoraModel(arguments):
 
     model = IGEVStereo(arguments)
     model_with_lora = get_peft_model(model, peft_config)
+    model_with_lora.print_trainable_parameters()    
     return model_with_lora
 
 
