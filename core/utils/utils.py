@@ -3,6 +3,72 @@ import torch.nn.functional as F
 import numpy as np
 from scipy import interpolate
 
+# Creadas por nosotros
+
+def load_image(path, normalize=True):
+    """
+    Load an image from path and convert to PyTorch tensor.
+    
+    Args:
+        path: Path to image file
+        normalize: Whether to normalize to [0,1] range
+    Returns:
+        Tensor [1, C, H, W] in RGB format
+    """
+    img = cv2.imread(path)  # [H, W, C] in BGR uint8
+    if img is None:
+        raise FileNotFoundError(f"Image not found at {path}")
+    
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # convert to RGB
+    img = torch.from_numpy(img).float()  # [H, W, C]
+    
+    if normalize:
+        img = img / 255.0  # normalize to [0,1]
+    
+    img = img.permute(2, 0, 1)  # [C, H, W]
+    img = img.unsqueeze(0)  # [1, C, H, W]
+    return img
+
+
+def load_disparity_png(path, scale=1.0, channel_to_use=0):
+    """
+    Load a disparity PNG file (with alpha channel) and convert to PyTorch tensor.
+    
+    Args:
+        path: Path to the disparity PNG file
+        scale: Scaling factor to apply to disparity values
+        channel_to_use: Which channel to extract (default 0 for first channel)
+                       Set to -1 to use the maximum across all channels
+    
+    Returns:
+        Tensor [1, 1, H, W] with disparity values
+    """
+    # Load image with all channels (including alpha)
+    disp_img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+    if disp_img is None:
+        raise FileNotFoundError(f"Disparity image not found at {path}")
+    
+    # Convert to float32 tensor
+    disp_tensor = torch.from_numpy(disp_img.astype(np.float32))
+    
+    # Handle multi-channel case (like RGBA)
+    if len(disp_tensor.shape) == 3:
+        if channel_to_use == -1:
+            # Use maximum across all channels
+            disp_tensor = disp_tensor.max(dim=2)[0]
+        else:
+            # Use specified channel
+            disp_tensor = disp_tensor[:, :, channel_to_use]
+    
+    # Apply scaling and add batch/channel dimensions
+    disp_tensor = disp_tensor * scale
+    disp_tensor = disp_tensor.unsqueeze(0).unsqueeze(0)  # [1, 1, H, W]
+    
+    return disp_tensor
+
+
+
+# Creadas por IGEV++
 
 class InputPadder:
     """ Pads images such that dimensions are divisible by 8 """

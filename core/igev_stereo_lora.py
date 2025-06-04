@@ -1,7 +1,7 @@
 from core import igev_stereo
 from igev_stereo import IGEVStereo
 from core.utils.args import Args
-from Dataset.dataloader import get_scared_dataloader
+from peft import LoraConfig, TaskType, get_peft_model
 
 args = Args()
 
@@ -35,7 +35,6 @@ for name, module in model.named_modules():
 print(f"Discovered LoRA target modules: {actual_target_modules}")
 print(f"Total LoRA target modules: {len(actual_target_modules)}")
 
-from peft import LoraConfig, TaskType, get_peft_model
 
 peft_config = LoraConfig(
     target_modules=actual_target_modules,
@@ -47,8 +46,18 @@ peft_config = LoraConfig(
 
 )
 
-model_with_lora = get_peft_model(model, peft_config)
-model_with_lora.print_trainable_parameters()
+def IGEVStereoLoraModel():
+    """
+    Initialize the IGEV Stereo model with LoRA configuration.
+    
+    Args:
+        args: Arguments for model initialization.
+    
+    Returns:
+        Model with LoRA applied.
+    """
+    model = IGEVStereo(args)
+    model_with_lora = get_peft_model(model, peft_config)
+    return model_with_lora, args
 
-train_loader, val_loader, total_size = get_scared_dataloader(args, train=True)
 
