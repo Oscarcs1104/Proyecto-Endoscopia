@@ -25,15 +25,7 @@ target_modules_candidates = [
 
 
 def IGEVStereoLoraModel(args):
-    """
-    Initialize the IGEV Stereo model with LoRA configuration.
-    
-    Args:
-        args: Arguments for model initialization.
-    
-    Returns:
-        Model with LoRA applied.
-    """
+
     actual_target_modules = []
     for name, module in model.named_modules():
         for candidate in target_modules_candidates:
@@ -46,12 +38,12 @@ def IGEVStereoLoraModel(args):
     print(f"Total LoRA target modules: {len(actual_target_modules)}")
 
     peft_config = LoraConfig(
-    target_modules=actual_target_modules,
-    lora_dropout=0.1,
-    bias="none",
-    r=4,
-    lora_alpha=16,
-    task_type=TaskType.FEATURE_EXTRACTION,
+        target_modules=actual_target_modules,
+        lora_dropout=0.1,
+        bias="none",
+        r=4,
+        lora_alpha=16,
+        task_type=TaskType.FEATURE_EXTRACTION
     )
 
     model = IGEVStereo(args)
