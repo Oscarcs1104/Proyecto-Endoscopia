@@ -77,7 +77,7 @@ def ArgsColab():
     parser.add_argument('--precision_dtype', default='float16', choices=['float16', 'bfloat16', 'float32'], help='Choose precision type: float16 or bfloat16 or float32')
 
     # Dataset Path
-    parser.add_argument('--data_path', default='/content/Proyecto-Endoscopia/Dataset/Data/dataset_7/', help='directory of the dataset')
+    parser.add_argument('--data_path', default='/content/Proyecto-Endoscopia/Dataset/Data/', help='directory of the dataset')
 
     # Training parameters
     parser.add_argument('--batch_size', type=int, default=8, help="batch size used during training.")

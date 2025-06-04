@@ -102,7 +102,8 @@ def train_stereo_model_lora(args):
             img_right = img_right.to(device)
             
             # 1. Forward
-            disp_left = model_with_lora(img_left)  # [B, 1, H, W]
+            disp_list = model_with_lora(img_left, img_right)  # [B, 1, H, W]
+            disp_left = disp_list[0]
 
             # 2. Warping
             img_right_warped, mask = stereo_warp(img_left, disp_left)
