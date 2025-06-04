@@ -87,31 +87,33 @@ def stereo_warp(img, disp):
 
     return warped_img, valid_mask
 
-model_with_lora, args = IGEVStereoLoraModel()
-optimizer = optim.AdamW(model_with_lora.parameters(), lr=1e-4)
-train_loader, val_loader, total_size = get_scared_dataloader(args, train=True)
-num_epochs = args.train_iters
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model_with_lora.to(device)
+def train_stereo_model_lora(args):
+    model_with_lora = IGEVStereoLoraModel(args)
+    optimizer = optim.AdamW(model_with_lora.parameters(), lr=1e-4)
+    train_loader, val_loader, total_size = get_scared_dataloader(args, train=True)
+    num_epochs = args.train_iters
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model_with_lora.to(device)
 
-for epoch in range(num_epochs):
-    model_with_lora.train()
-    for img_left, img_right in train_loader:
-        img_left = img_left.to(device)
-        img_right = img_right.to(device)
-        
-        # 1. Forward
-        disp_left = model_with_lora(img_left)  # [B, 1, H, W]
+    for epoch in range(num_epochs):
+        model_with_lora.train()
+        for img_left, img_right in train_loader:
+            img_left = img_left.to(device)
+            img_right = img_right.to(device)
+            
+            # 1. Forward
+            disp_left = model_with_lora(img_left)  # [B, 1, H, W]
 
-        # 2. Warping
-        img_right_warped, mask = stereo_warp(img_left, disp_left)
-        
-        # 3. Pérdida fotométrica
-        loss = photometric_loss(img_right, img_right_warped, mask=mask)
-        
-        # 4. Backprop + optim
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        
-        print(f"Loss: {loss.item():.4f}")
+            # 2. Warping
+            img_right_warped, mask = stereo_warp(img_left, disp_left)
+            
+            # 3. Pérdida fotométrica
+            loss = photometric_loss(img_right, img_right_warped, mask=mask)
+            
+            # 4. Backprop + optim
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            print(f"Loss: {loss.item():.4f}")
+

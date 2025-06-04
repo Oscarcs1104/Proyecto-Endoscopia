@@ -56,6 +56,6 @@ def IGEVStereoLoraModel(args):
 
     model = IGEVStereo(args)
     model_with_lora = get_peft_model(model, peft_config)
-    return model_with_lora, args
+    return model_with_lora
 
 
