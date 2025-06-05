@@ -191,6 +191,11 @@ class IGEVStereo(nn.Module):
             disp_volume1 = self.patch0(all_disp_volume[:,:,:self.args.m_disp_range])
             disp_volume2 = self.patch1(all_disp_volume)
 
+            print(f"all_disp_volume shape: {all_disp_volume.shape}")
+            print(f"disp_volume0 shape: {disp_volume0.shape} (should be divisible by 8 in dim=2)")
+            print(f"disp_volume1 shape: {disp_volume1.shape} (should be divisible by 8 in dim=2)")
+            print(f"disp_volume2 shape: {disp_volume2.shape} (should be divisible by 8 in dim=2)")
+
             geo_encoding_volume0 = self.cost_agg0(disp_volume0, features_left)
             geo_encoding_volume1 = self.cost_agg1(disp_volume1, features_left)
             geo_encoding_volume2 = self.cost_agg2(disp_volume2, features_left)
