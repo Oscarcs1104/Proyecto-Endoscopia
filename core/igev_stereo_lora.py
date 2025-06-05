@@ -42,7 +42,7 @@ def IGEVStereoLoraModel(arguments):
         bias="none",
         r=4,
         lora_alpha=16,
-        task_type=TaskType.FEATURE_EXTRACTION
+        task_type=None
     )
 
 

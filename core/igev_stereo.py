@@ -83,11 +83,12 @@ class hourglass(nn.Module):
 
         conv3_up = self.conv3_up(conv3)
         print(f"After conv3_up shape: {conv3_up.shape}")
-        conv2 = torch.cat((conv3_up, conv2), dim=1)
-        # Asegurar que conv3_up tenga el mismo tamaño que conv2
         if conv3_up.shape[2:] != conv2.shape[2:]:
             conv3_up = F.interpolate(conv3_up, size=conv2.shape[2:], mode='trilinear')
             print(f"conv3_up resized to match conv2 shape: {conv3_up.shape}")
+        conv2 = torch.cat((conv3_up, conv2), dim=1)
+        # Asegurar que conv3_up tenga el mismo tamaño que conv2
+        
         
         print(f"After concatenation conv2 shape: {conv2.shape}")
         conv2 = self.agg_0(conv2)
