@@ -69,9 +69,9 @@ class hourglass(nn.Module):
     def forward(self, x, features):
         print(f"Input x shape: {x.shape}")
         conv0 = self.conv0(x)
-        print(f"After conv0 shape: {conv0.shape}")
+        
         conv0 = self.feature_att_4(conv0, features[0])
-        print(f"After feature_att_4 shape: {conv0.shape}")
+        
         conv1 = self.conv1(conv0)
         conv1 = self.feature_att_8(conv1, features[1])
 
@@ -82,7 +82,7 @@ class hourglass(nn.Module):
         conv3 = self.feature_att_32(conv3, features[3])
 
         conv3_up = self.conv3_up(conv3)
-        print(f"After conv3_up shape: {conv3_up.shape}")
+        
         if conv3_up.shape[2:] != conv2.shape[2:]:
             conv3_up = F.interpolate(conv3_up, size=conv2.shape[2:], mode='trilinear')
             print(f"conv3_up resized to match conv2 shape: {conv3_up.shape}")
@@ -90,7 +90,6 @@ class hourglass(nn.Module):
         # Asegurar que conv3_up tenga el mismo tamaño que conv2
         
         
-        print(f"After concatenation conv2 shape: {conv2.shape}")
         conv2 = self.agg_0(conv2)
         conv2 = self.feature_att_up_16(conv2, features[2])
 

@@ -35,7 +35,7 @@ def Args():
     parser.add_argument('--n_downsample', type=int, default=2, help="resolution of the disparity field (1/2^K)")
     parser.add_argument('--n_gru_layers', type=int, default=3, help="number of hidden GRU levels")
     parser.add_argument('--hidden_dims', nargs='+', type=int, default=[128]*3, help="hidden state and context dimensions")
-    parser.add_argument('--max_disp', type=int, default=350, help="max disp range")
+    parser.add_argument('--max_disp', type=int, default=768, help="max disp range")
     parser.add_argument('--s_disp_range', type=int, default=48, help="max disp of small disparity-range geometry encoding volume")
     parser.add_argument('--m_disp_range', type=int, default=96, help="max disp of medium disparity-range geometry encoding volume")
     parser.add_argument('--l_disp_range', type=int, default=192, help="max disp of large disparity-range geometry encoding volume")
