@@ -10,10 +10,7 @@ target_modules_candidates = [
     ".conv1",
     ".conv2",
     ".conv3",
-    ".q_proj", # If there are query projections in attention
-    ".v_proj", # If there are value projections in attention
-    ".k_proj", # If there are key projections in attention
-    "g_proj", # Example, if some specific projection exists
+    
     "c_proj",
     "attn_q", # If they have custom names like this
     "attn_v",
@@ -33,8 +30,7 @@ def IGEVStereoLoraModel(arguments):
                 actual_target_modules.append(name)
                 # Break to avoid adding the same module multiple times if multiple candidates match
                 break
-    print(f"Discovered LoRA target modules: {actual_target_modules}")
-    print(f"Total LoRA target modules: {len(actual_target_modules)}")
+    
 
     peft_config = LoraConfig(
         target_modules=actual_target_modules,

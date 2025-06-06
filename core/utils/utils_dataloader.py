@@ -18,16 +18,16 @@ def get_scared_file_pairs(root_path):
         print(dataset_folder)
         dataset_path = os.path.join(root_path, dataset_folder)
         print(dataset_path)
-        #if not os.path.isdir(dataset_path):
-        #  print('Not found')
-        #  continue
+        if not os.path.isdir(dataset_path):
+          print('Not found')
+          continue
         for keyframe_folder in sorted(os.listdir(dataset_path)):
             print("keyframe " +keyframe_folder)
             keyframe_path = os.path.join(dataset_path, keyframe_folder, 'rectified_video_frame')
-            #print(keyframe_path)
-            #if not os.path.isdir(keyframe_path):
-            #  print('Not found')
-            #  continue
+            print(keyframe_path)
+            if not os.path.isdir(keyframe_path):
+              print('Not found')
+              continue
 
             left_dir = os.path.join(keyframe_path, 'left')
             right_dir = os.path.join(keyframe_path, 'right')
