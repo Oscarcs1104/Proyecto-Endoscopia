@@ -167,7 +167,7 @@ class IGEVStereo(nn.Module):
             up_disp = context_upsample(disp*4., spx_pred)
         return up_disp
 
-    def forward(self, image1, image2, iters=12, test_mode=False):
+    def forward(self, image1, image2, iters=12, test_mode=True):
         """ Estimate disparity between pair of frames """
 
         image1 = (2 * (image1 / 255.0) - 1.0).contiguous()
