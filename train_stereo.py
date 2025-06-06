@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-import pytorch_ssim
+from pytorch_msssim import ssim
 import torch.optim as optim
 from torchvision import models
 from torchvision import transforms
@@ -13,7 +13,7 @@ from Dataset.dataloader import get_scared_dataloader
 def photometric_loss(img1, img2, mask=None, alpha=0.85, eps=1e-8):
     """
     Photometric loss combining SSIM and L1.
-    
+
     Args:
         img1, img2: [B, C, H, W] (RGB images)
         mask: [B, 1, H, W] (optional, weights for pixels)
@@ -26,24 +26,27 @@ def photometric_loss(img1, img2, mask=None, alpha=0.85, eps=1e-8):
     if img1.max() > 1 or img2.max() > 1:
         img1 = img1 / 255.0
         img2 = img2 / 255.0
-    
-    # Calculate SSIM (expects RGB images)
-    ssim_val = pytorch_ssim.ssim(img1, img2)  # [B]
-    ssim_loss = 1 - ssim_val  # convert to loss
-    
+
+
+    ssim_val = ssim(img1, img2, data_range=1.0, size_average=False) 
+
+    ssim_loss = 1 - ssim( img1, img2, data_range=1.0, 
+    size_average=True)
+
     # Calculate L1 (average over channels)
     l1_loss = F.l1_loss(img1, img2, reduction='none').mean(dim=1, keepdim=True)  # [B, 1, H, W]
-    
+
     # Combine losses
-    combined_loss = alpha * ssim_loss.view(-1, 1, 1, 1) + (1 - alpha) * l1_loss  # [B, 1, H, W]
-    
+    combined_loss = alpha * ssim_loss + (1 - alpha) * l1_loss  # [B, 1, H, W]
+    #    combined_loss = alpha * ssim_loss.view(-1, 1, 1, 1) + (1 - alpha) * l1_loss  # [B, 1, H, W]
+
     # Apply mask if provided
     if mask is not None:
         valid_pixels = mask.sum() + eps
         loss = (combined_loss * mask).sum() / valid_pixels
     else:
         loss = combined_loss.mean()
-    
+
     return loss
 
 
@@ -62,14 +65,14 @@ def stereo_warp(img, disp):
     device = img.device
 
     # Create mesh grid
-    grid_x, grid_y = torch.meshgrid(torch.arange(W, device=device), 
-                                  torch.arange(H, device=device), 
+    grid_x, grid_y = torch.meshgrid(torch.arange(W, device=device),
+                                  torch.arange(H, device=device),
                                   indexing='xy')
     grid_x = grid_x.unsqueeze(0).expand(B, H, W)  # [B, H, W]
     grid_y = grid_y.unsqueeze(0).expand(B, H, W)  # [B, H, W]
 
     # Subtract disparity (horizontal shift)
-    x_warp = grid_x + disp.squeeze(1)  # disp was [B,1,H,W], now [B,H,W] Lo mas importante, es positivo diferencias horizante entre la imagen derecha y la izquierda.
+    x_warp = grid_x - disp.squeeze(1)  # disp was [B,1,H,W], now [B,H,W]
     y_warp = grid_y
 
     # Normalize to [-1, 1] for grid_sample

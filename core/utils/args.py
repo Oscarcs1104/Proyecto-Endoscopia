@@ -17,7 +17,7 @@ def Args():
     
 
     # Training parameters
-    parser.add_argument('--batch_size', type=int, default=4, help="batch size used during training.")
+    parser.add_argument('--batch_size', type=int, default=1, help="batch size used during training.")
     parser.add_argument('--batch_size_evaluation', type=int, default=8, help="batch size used during evaluation.")
     parser.add_argument('--train_datasets', default='sceneflow', choices=['sceneflow', 'kitti', 'middlebury_train', 'middlebury_finetune', 'eth3d_train', 'eth3d_finetune'], help="training datasets.")
     parser.add_argument('--lr', type=float, default=0.0002, help="max learning rate.")
@@ -68,6 +68,7 @@ def Args():
     # train(args)
     return args
 
+import argparse
 def ArgsColab():
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', default='igev-stereo', help="name your experiment")
@@ -80,7 +81,7 @@ def ArgsColab():
     parser.add_argument('--data_path', default='/content/Proyecto-Endoscopia/Dataset/Data/', help='directory of the dataset')
 
     # Training parameters
-    parser.add_argument('--batch_size', type=int, default=4, help="batch size used during training.")
+    parser.add_argument('--batch_size', type=int, default=1, help="batch size used during training.")
     parser.add_argument('--batch_size_evaluation', type=int, default=8, help="batch size used during evaluation.")
     parser.add_argument('--train_datasets', default='sceneflow', choices=['sceneflow', 'kitti', 'middlebury_train', 'middlebury_finetune', 'eth3d_train', 'eth3d_finetune'], help="training datasets.")
     parser.add_argument('--lr', type=float, default=0.0002, help="max learning rate.")
