@@ -85,8 +85,9 @@ def get_scared_file_pairs(root_path, training=True):
             # If not in training mode, also collect ground truth depth maps
             if not training:
                 rectified_depth_maps_path = os.path.join(keyframe_path, 'rectified_depth_maps')
-                if os.path.isdir(rectified_depth_maps_path):
-                    for filename in sorted(os.listdir(rectified_depth_maps_path)):
+                left_dir_gt = os.path.join(rectified_depth_maps_path, 'left')
+                if os.path.isdir(left_dir_gt):
+                    for filename in sorted(os.listdir(left_dir_gt)):
                         depth_map_path = os.path.join(rectified_depth_maps_path, filename)
                         ground_truth_images.append(depth_map_path)
                 else:
