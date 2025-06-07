@@ -7,7 +7,8 @@ from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
 from core.igev_stereo_lora import IGEVStereoLoraModel
 from Dataset.dataloader import get_scared_dataloader
-
+from torch.optim.lr_scheduler import StepLR
+import matplotlib.pyplot as plt
 
 
 def photometric_loss(img1, img2, mask=None, alpha=0.85, eps=1e-8):
@@ -91,25 +92,30 @@ def stereo_warp(img, disp):
     return warped_img, valid_mask
 
 def train_stereo_model_lora(args):
+
+    num_epochs = args.train_iters
+
     model_with_lora = IGEVStereoLoraModel(args)
     optimizer = optim.AdamW(model_with_lora.parameters(), lr=1e-4)
-    train_loader, val_loader, total_size = get_scared_dataloader(args, train=True)
-    num_epochs = args.train_iters
+    scheduler = StepLR(optimizer, step_size=10, gamma=0.5)  # cada 10 epochs, reduce lr a la mitad
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model_with_lora.to(device)
 
+    train_loader, val_loader, total_size = get_scared_dataloader(args, train=True)
+    
+
     for epoch in range(num_epochs):
         model_with_lora.train()
-        for img_left, img_right in train_loader:
+        for _, img_left, img_right in train_loader:
             img_left = img_left.to(device)
             img_right = img_right.to(device)
             
             # 1. Forward
             disp_list = model_with_lora(img_left, img_right)  # [B, 1, H, W]
-            disp_left = disp_list[0]
-
+      
             # 2. Warping
-            img_right_warped, mask = stereo_warp(img_left, disp_left)
+            img_right_warped, mask = stereo_warp(img_left, disp_list)
             
             # 3. Pérdida fotométrica
             loss = photometric_loss(img_right, img_right_warped, mask=mask)
@@ -119,5 +125,7 @@ def train_stereo_model_lora(args):
             loss.backward()
             optimizer.step()
             
-            print(f"Loss: {loss.item():.4f}")
+            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}, lr: {optimizer.param_groups[0]['lr']:.6f}")
+        scheduler.step()
+        torch.save(model_with_lora.state_dict(), f"checkpoints/model_epoch_{epoch+1}.pth")
 
