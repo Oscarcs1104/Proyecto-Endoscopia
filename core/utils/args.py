@@ -15,6 +15,8 @@ def Args():
     # Dataset Path
     parser.add_argument('--data_path', default='/content/Dataset/Data', help='directory of the dataset')
     
+    # Ground Truth Path (Depth Maps Path)
+    parser.add_argument('--gt_path', default='/content/Dataset/Data/ground_truth', help='directory of the ground truth depth maps')
 
     # Training parameters
     parser.add_argument('--batch_size', type=int, default=1, help="batch size used during training.")
@@ -79,6 +81,9 @@ def ArgsColab():
 
     # Dataset Path
     parser.add_argument('--data_path', default='/content/Proyecto-Endoscopia/Dataset/Data/', help='directory of the dataset')
+
+    # Ground Truth Path (Depth Maps Path)
+    parser.add_argument('--gt_path', default='/content/Proyecto-Endoscopia/Dataset/Data/ground_truth/', help='directory of the ground truth depth maps')
 
     # Training parameters
     parser.add_argument('--batch_size', type=int, default=1, help="batch size used during training.")
