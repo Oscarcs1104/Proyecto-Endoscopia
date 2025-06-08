@@ -1,10 +1,8 @@
 
-import os
 import random
-import torch
 from torch.utils.data import Dataset
-from torchvision import transforms
-from torchvision.transforms import functional as F
+import torchvision.transforms as transforms
+import torchvision.transforms.functional as F
 from torch.utils.data import DataLoader, random_split
 
 
@@ -24,6 +22,35 @@ class RandomFlip:
             img = F.vflip(img)
         return img
 
+class StereoColorJitter:
+    def __init__(self, brightness=0, contrast=0, saturation=0, hue=0):
+        # Igual firma que ColorJitter
+        self.brightness = brightness
+        self.contrast   = contrast
+        self.saturation = saturation
+        self.hue        = hue
+
+    def __call__(self, left, right):
+        _, brightness_factor, contrast_factor, saturation_factor, hue_factor = transforms.ColorJitter.get_params(
+            self.brightness, 
+            self.contrast,
+            self.saturation, 
+            self.hue)
+        
+        left  = F.adjust_brightness(left, brightness_factor)
+        right = F.adjust_brightness(right, brightness_factor)
+
+        left  = F.adjust_contrast(left, contrast_factor)
+        right = F.adjust_contrast(right, contrast_factor)
+
+        left  = F.adjust_saturation(left, saturation_factor)
+        right = F.adjust_saturation(right, saturation_factor)
+
+        left  = F.adjust_hue(left, hue_factor)
+        right = F.adjust_hue(right, hue_factor)
+
+        return left, right
+
 class SCARED_IGEV(Dataset):
     def __init__(self, root_path, training=True):
         """
@@ -31,6 +58,9 @@ class SCARED_IGEV(Dataset):
             root_path (str): Root path to the SCARED dataset.
             training (bool): Whether the dataset is for training or evaluation.
         """
+
+        self.training = training
+        
         if self.training:
             self.left_paths, self.right_paths = get_scared_file_pairs(root_path, training=training)
             self.gt_paths = None # No ground truth needed for training
@@ -42,26 +72,31 @@ class SCARED_IGEV(Dataset):
             transforms.Resize((256, 320)),
             transforms.ToTensor()
         ])
+
+        """
         self.transform_train  = transforms.Compose([
-            RandomFlip(horizontal=True, vertical=True),
+            #RandomFlip(horizontal=True, vertical=True),
             transforms.ColorJitter(
-                brightness=(0.8, 1.4),
-                contrast=(0.8, 1.4),
-                saturation=(0.8, 1.4),
+                brightness=(0.7, 1.4),
+                contrast=(0.7, 1.4),
+                saturation=(0.7, 1.4),
                 hue=(-0.1, 0.1)
             )
         ])
-        # Define a transform for ground truth images (usually just ToTensor)
+        """
+        """
+        self.stereo_jitter = StereoColorJitter(
+            brightness=(0.9, 1.0),
+            contrast=(0.9, 1.0),
+            saturation=(0.9, 1.0),
+            hue=(0, 0)
+        )
+        """
+        
         self.transform_gt = transforms.Compose([
             transforms.Resize((256, 320)), # Ensure ground truth matches image size
             transforms.ToTensor()
         ])
-        """
-        self.normalize = transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],  # ImageNet mean
-            std=[0.229, 0.224, 0.225]
-        )
-        """
 
     def __len__(self):
         return len(self.left_paths)
@@ -75,53 +110,25 @@ class SCARED_IGEV(Dataset):
         right_tensor = self.transform_base(right_img)
 
         if self.training:
-
-            left_aug = left_tensor.clone()
-            left_aug = self.transform_train(left_aug)
-            return left_aug, left_tensor, right_tensor
+            #left_tensor, right_tensor = self.stereo_jitter(left_tensor, right_tensor)
+            return left_tensor, right_tensor
 
         else:
-
             gt_img = read_image(self.gt_paths[idx])
             gt_tensor = self.transform_gt(gt_img)
 
-            left_aug = left_tensor.clone()
             return left_tensor, right_tensor, gt_tensor
 
 
 def get_scared_dataloader(args, train=True):
     dataset = SCARED_IGEV(args.data_path, training=train)
+    dataloader = DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=4,
+        drop_last=True
+    )
 
-    if train:
-        total_size = len(dataset)
-        train_size = int(0.70 * total_size)
-        val_size = total_size - train_size
+    return dataloader
 
-        train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=args.batch_size,
-            shuffle=True,
-            num_workers=4,
-            drop_last=True
-        )
-
-        val_loader = DataLoader(
-            val_dataset,
-            batch_size=args.batch_size_evaluation,
-            shuffle=False,
-            num_workers=4,
-            drop_last=False
-        )
-        return train_loader, val_loader, total_size
-    else:
-        # For testing, return a single DataLoader for the entire dataset
-        test_loader = DataLoader(
-            dataset,
-            batch_size=args.batch_size_evaluation, # Use evaluation batch size
-            shuffle=False, # Do not shuffle test data
-            num_workers=4,
-            drop_last=False # Do not drop last batch for evaluation
-        )
-        return test_loader, len(dataset) # Return the test loader and total size

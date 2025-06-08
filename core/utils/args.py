@@ -8,28 +8,29 @@ def Args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', default='igev-stereo', help="name your experiment")
     parser.add_argument('--restore_ckpt', default=None, help='load the weights from a specific checkpoint')
-    parser.add_argument('--logdir', default='/content/checkpoints/logs', help='the directory to save logs and checkpoints')
+    parser.add_argument('--logdir', default='./checkpoints/logs', help='the directory to save logs and checkpoints')
     parser.add_argument('--mixed_precision', default=False, action='store_true', help='use mixed precision')
-    parser.add_argument('--precision_dtype', default='float16', choices=['float16', 'bfloat16', 'float32'], help='Choose precision type: float16 or bfloat16 or float32')
+    parser.add_argument('--precision_dtype', default='float32', choices=['float16', 'bfloat16', 'float32'], help='Choose precision type: float16 or bfloat16 or float32')
 
     # Dataset Path
-    parser.add_argument('--data_path', default='/content/Dataset/Data', help='directory of the dataset')
+    parser.add_argument('--data_path', default='./Dataset/Data', help='directory of the dataset')
     
     # Ground Truth Path (Depth Maps Path)
-    parser.add_argument('--gt_path', default='/content/Dataset/Data/ground_truth', help='directory of the ground truth depth maps')
+    parser.add_argument('--gt_path', default='./Dataset/Data/ground_truth', help='directory of the ground truth depth maps')
 
     # Training parameters
     parser.add_argument('--batch_size', type=int, default=1, help="batch size used during training.")
-    parser.add_argument('--batch_size_evaluation', type=int, default=8, help="batch size used during evaluation.")
+    parser.add_argument('--batch_size_evaluation', type=int, default=3, help="batch size used during evaluation.")
     parser.add_argument('--train_datasets', default='sceneflow', choices=['sceneflow', 'kitti', 'middlebury_train', 'middlebury_finetune', 'eth3d_train', 'eth3d_finetune'], help="training datasets.")
-    parser.add_argument('--lr', type=float, default=0.0002, help="max learning rate.")
+    parser.add_argument('--lr', type=float, default=2e-5, help="max learning rate.")
     parser.add_argument('--num_steps', type=int, default=200000, help="length of training schedule.")
+    parser.add_argument('--epochs', type=int, default=5, help="Epochs for training.")
     parser.add_argument('--image_size', type=int, nargs='+', default=[256, 350], help="size of the random image crops used during training.")
-    parser.add_argument('--train_iters', type=int, default=22, help="number of updates to the disparity field in each forward pass.")
+    parser.add_argument('--train_iters', type=int, default=10, help="number of updates to the disparity field in each forward pass.")
     parser.add_argument('--wdecay', type=float, default=.00001, help="Weight decay in optimizer.")
 
     # Validation parameters
-    parser.add_argument('--valid_iters', type=int, default=32, help='number of flow-field updates during validation forward pass')
+    parser.add_argument('--valid_iters', type=int, default=16, help='number of flow-field updates during validation forward pass')
 
     # Architecure choices
     parser.add_argument('--corr_levels', type=int, default=2, help="number of levels in the correlation pyramid")
@@ -77,7 +78,7 @@ def ArgsColab():
     parser.add_argument('--restore_ckpt', default=None, help='load the weights from a specific checkpoint')
     parser.add_argument('--logdir', default='/content/checkpoints/logs', help='the directory to save logs and checkpoints')
     parser.add_argument('--mixed_precision', default=False, action='store_true', help='use mixed precision')
-    parser.add_argument('--precision_dtype', default='float16', choices=['float16', 'bfloat16', 'float32'], help='Choose precision type: float16 or bfloat16 or float32')
+    parser.add_argument('--precision_dtype', default='float32', choices=['float16', 'bfloat16', 'float32'], help='Choose precision type: float16 or bfloat16 or float32')
 
     # Dataset Path
     parser.add_argument('--data_path', default='/content/Proyecto-Endoscopia/Dataset/Data/', help='directory of the dataset')
@@ -96,7 +97,7 @@ def ArgsColab():
     parser.add_argument('--wdecay', type=float, default=.00001, help="Weight decay in optimizer.")
 
     # Validation parameters
-    parser.add_argument('--valid_iters', type=int, default=32, help='number of flow-field updates during validation forward pass')
+    parser.add_argument('--valid_iters', type=int, default=16, help='number of flow-field updates during validation forward pass')
 
     # Architecure choices
     parser.add_argument('--corr_levels', type=int, default=2, help="number of levels in the correlation pyramid")

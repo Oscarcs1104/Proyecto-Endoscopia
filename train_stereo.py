@@ -2,14 +2,26 @@ import torch
 import torch.nn.functional as F
 from pytorch_msssim import ssim
 import torch.optim as optim
-from torchvision import models
-from torchvision import transforms
-from torch.utils.data import DataLoader, Dataset
+
 from core.igev_stereo_lora import IGEVStereoLoraModel
 from Dataset.dataloader import get_scared_dataloader
 from torch.optim.lr_scheduler import StepLR
-import matplotlib.pyplot as plt
+import wandb
+from metrics import DepthEvaluationMetrics
+from loguru import logger
+from torch.cuda.amp import autocast, GradScaler
+from core.utils.args import Args
+from tqdm import tqdm
+import matplotlib
+import numpy as np
 
+def disparity_to_depth(disparity, focal_length, baseline):
+
+    focal_lengths = torch.tensor(focal_length, dtype=disparity.dtype, device=disparity.device).view(-1, 1, 1, 1)
+    depth = (focal_lengths * baseline) / (disparity + 1e-8)
+    depth[disparity <= 0] = 0
+
+    return depth
 
 def photometric_loss(img1, img2, mask=None, alpha=0.85, eps=1e-8):
     """
@@ -28,18 +40,11 @@ def photometric_loss(img1, img2, mask=None, alpha=0.85, eps=1e-8):
         img1 = img1 / 255.0
         img2 = img2 / 255.0
 
-
-    ssim_val = ssim(img1, img2, data_range=1.0, size_average=False) 
-
-    ssim_loss = 1 - ssim( img1, img2, data_range=1.0, 
-    size_average=True)
-
-    # Calculate L1 (average over channels)
+    ssim_loss = 1 - ssim( img1, img2, data_range=1.0, size_average=True)
     l1_loss = F.l1_loss(img1, img2, reduction='none').mean(dim=1, keepdim=True)  # [B, 1, H, W]
 
     # Combine losses
     combined_loss = alpha * ssim_loss + (1 - alpha) * l1_loss  # [B, 1, H, W]
-    #    combined_loss = alpha * ssim_loss.view(-1, 1, 1, 1) + (1 - alpha) * l1_loss  # [B, 1, H, W]
 
     # Apply mask if provided
     if mask is not None:
@@ -50,6 +55,18 @@ def photometric_loss(img1, img2, mask=None, alpha=0.85, eps=1e-8):
 
     return loss
 
+def smoothness_loss(disparity, img):
+    """Encourages disparity smoothness except at image edges."""
+    grad_disp_x = torch.abs(disparity[:, :, :, :-1] - disparity[:, :, :, 1:])
+    grad_disp_y = torch.abs(disparity[:, :, :-1, :] - disparity[:, :, 1:, :])
+
+    grad_img_x = torch.mean(torch.abs(img[:, :, :, :-1] - img[:, :, :, 1:]), 1, keepdim=True)
+    grad_img_y = torch.mean(torch.abs(img[:, :, :-1, :] - img[:, :, 1:, :]), 1, keepdim=True)
+
+    # Reduce penalty at image edges
+    smooth_x = grad_disp_x * torch.exp(-grad_img_x)
+    smooth_y = grad_disp_y * torch.exp(-grad_img_y)
+    return smooth_x.mean() + smooth_y.mean()
 
 def stereo_warp(img, disp):
     """
@@ -62,7 +79,7 @@ def stereo_warp(img, disp):
         Warped image: [B, C, H, W]
         Valid mask:   [B, 1, H, W] (1 where warping was valid)
     """
-    B, C, H, W = img.size()
+    B, _, H, W = img.size()
     device = img.device
 
     # Create mesh grid
@@ -92,40 +109,127 @@ def stereo_warp(img, disp):
     return warped_img, valid_mask
 
 def train_stereo_model_lora(args):
-
-    num_epochs = args.train_iters
+    start_epoch = 0
+    accum_steps = 2  # Puedes ajustar este valor
 
     model_with_lora = IGEVStereoLoraModel(args)
-    optimizer = optim.AdamW(model_with_lora.parameters(), lr=1e-4)
-    scheduler = StepLR(optimizer, step_size=10, gamma=0.5)  # cada 10 epochs, reduce lr a la mitad
+    optimizer = optim.AdamW(model_with_lora.parameters(), lr=args.lr)
+    scheduler = StepLR(optimizer, step_size=5, gamma=0.7)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cuda"
     model_with_lora.to(device)
+    best_rmse = float('inf')
 
-    train_loader, val_loader, total_size = get_scared_dataloader(args, train=True)
-    
+    wandb.init(project="stereo-lora", config=vars(args))
+    scaler = GradScaler()
+    train_loader = get_scared_dataloader(args, train=True)
+    val_loader = get_scared_dataloader(args, train=False)
 
-    for epoch in range(num_epochs):
-        model_with_lora.train()
-        for _, img_left, img_right in train_loader:
-            img_left = img_left.to(device)
-            img_right = img_right.to(device)
-            
-            # 1. Forward
-            disp_list = model_with_lora(img_left, img_right)  # [B, 1, H, W]
-      
-            # 2. Warping
-            img_right_warped, mask = stereo_warp(img_left, disp_list)
-            
-            # 3. Pérdida fotométrica
-            loss = photometric_loss(img_right, img_right_warped, mask=mask)
-            
-            # 4. Backprop + optim
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            
-            print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}, lr: {optimizer.param_groups[0]['lr']:.6f}")
-        scheduler.step()
-        torch.save(model_with_lora.state_dict(), f"checkpoints/model_epoch_{epoch+1}.pth")
+    logger.info(f"Total images for training phase {len(train_loader)}")
 
+    for epoch_idx in range(start_epoch, args.epochs):
+            model_with_lora.train()
+            progress_bar = tqdm(enumerate(train_loader), 
+                        total=len(train_loader),
+                        desc=f"Epoch {epoch_idx + 1}")
+            
+            for batch_idx, batch in progress_bar:
+                img_left, img_right = [x.cuda(non_blocking=True) for x in batch]
+
+                #with autocast(dtype=torch.float32): #Try full precision first
+                disp_list = model_with_lora(img_left, img_right)  # [B, 1, H, W]
+                img_right_warped, mask = stereo_warp(img_right, disp_list) #img_right_warped == synthetic left
+                loss_photo = photometric_loss(img_right, img_right_warped, mask=mask)
+                smooth_loss = smoothness_loss(disp_list, img_left)
+
+                loss = loss_photo + 0.3 * smooth_loss  
+                loss = loss / accum_steps  # Normaliza la pérdida
+
+                #scaler.scale(loss).backward()
+                loss.backward()
+
+                if (batch_idx + 1) % accum_steps == 0:
+                    optimizer.step()
+                    optimizer.zero_grad()
+
+                """
+                if (batch_idx + 1) % accum_steps == 0:
+                    scaler.step(optimizer)
+                    scaler.update()
+                    optimizer.zero_grad()
+                """
+                lr = optimizer.param_groups[0]['lr']
+
+                total_norm = 0.0
+                for p in model_with_lora.parameters():
+                    if p.grad is not None:
+                        param_norm = p.grad.data.norm(2)  # L2 norm of this parameter's gradient
+                        total_norm += param_norm.item() ** 2
+                total_norm = total_norm ** 0.5
+                wandb.log({"gradient norm": total_norm,
+                        "epoch": epoch_idx+1,
+                        "loss": loss.item()*accum_steps,
+                        "lr": lr,})
+                #print(f"Epoch [{epoch_idx+1}/{args.epochs}], Step [{batch_idx+1}], Loss: {loss.item()*accum_steps:.4f}, lr: {lr:.6f}")
+
+                if batch_idx % 20 == 0:
+                    # --- Wandb logging de imágenes ---
+                    left_np = img_left[0].detach().cpu().numpy().transpose(1,2,0)
+                    right_np = img_right[0].detach().cpu().numpy().transpose(1,2,0)
+                    warp_np = img_right_warped[0].detach().cpu().numpy().transpose(1,2,0)
+                    disp_np = disp_list[0,0].detach().cpu().numpy()
+
+                    # Chequeo de valores válidos
+                    if not np.isfinite(disp_np).all() or (np.max(disp_np) - np.min(disp_np) < 1e-6):
+                        disp_norm = np.zeros_like(disp_np)
+                    else:
+                        disp_norm = (disp_np - np.min(disp_np)) / (np.max(disp_np) - np.min(disp_np) + 1e-8)
+
+                    disp_color = matplotlib.cm.get_cmap('Spectral')(disp_norm)[:, :, :3]  # (H, W, 3)
+                    disp_color = (disp_color * 255).astype(np.uint8)
+
+                    wandb.log({
+                        "Warp": wandb.Image(warp_np, caption="Warped"),
+                        "Disparidad Color": wandb.Image(disp_color, caption="Disparidad Color"),
+                        "Imagen Izquierda": wandb.Image(left_np, caption="Imagen Izquierda"),
+                        "Imagen Derecha": wandb.Image(right_np, caption="Imagen Derecha")
+                    })
+
+            scheduler.step()
+
+            eval_metrics = evaluate_stereo_lora(args, model=model_with_lora, val_loader=val_loader)
+            rmse_metric = eval_metrics["RMSE"]
+            if rmse_metric < best_rmse:
+                print(f"Validation RMSE improved from {best_rmse:.4f} to {rmse_metric:.4f}. Saving checkpoint.")
+                torch.save(model_with_lora.state_dict(), f"checkpoints/model_epoch_{epoch_idx+1}.pth")
+
+    wandb.finish()
+
+def evaluate_stereo_lora(args, model, val_loader):
+
+    metrics_calculator = DepthEvaluationMetrics()
+
+    model.eval()
+    progress_bar = tqdm(enumerate(val_loader), total=len(val_loader), desc="Validation")
+
+    with torch.no_grad():
+        for idx, batch in progress_bar:
+            img_left, img_right, gt = [x.cuda(non_blocking=True) for x in batch]
+
+            disp_pred = model(img_left, img_right)
+            disp2depth = disparity_to_depth(disp_pred, focal_length=1035, baseline=4.143) #baseline in mm, focal_length in px
+
+            metrics_calculator.update(pred_depth=disp2depth, target_depth=gt)
+
+        final_metrics = metrics_calculator.compute_metrics()
+        print("\n--- Validation Metrics ---")
+        for metric, value in final_metrics.items():
+            print(f"{metric}: {value:.4f}")
+
+    metrics_calculator.reset()
+    return final_metrics
+
+if __name__ == "__main__":
+    args = Args()
+    train_stereo_model_lora(args)

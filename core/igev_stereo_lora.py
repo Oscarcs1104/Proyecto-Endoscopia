@@ -4,7 +4,6 @@ from peft import LoraConfig, TaskType, get_peft_model
 import torch
 import torch.nn as nn
 
-
 target_modules_candidates = [
     ".conv",  # Catches many convolutional layers
     ".conv1",
@@ -30,7 +29,7 @@ def IGEVStereoLoraModel(arguments):
 
     actual_target_modules = []
     model = igev_stereo.IGEVStereo(arguments) # Instantiate the model
-    checkpoint = torch.load('/content/Proyecto-Endoscopia/Checkpoints/sceneflow.pth', map_location='cpu')
+    checkpoint = torch.load('./Checkpoints/sceneflow.pth', map_location='cpu')
     state_dict = checkpoint.get('state_dict', checkpoint)
     state_dict = remove_module_prefix(state_dict)
     model.load_state_dict(state_dict)
@@ -42,18 +41,17 @@ def IGEVStereoLoraModel(arguments):
                 actual_target_modules.append(name)
                 # Break to avoid adding the same module multiple times if multiple candidates match
                 break
-    print(f"Discovered LoRA target modules: {actual_target_modules}")
-    print(f"Total LoRA target modules: {len(actual_target_modules)}")
+    #print(f"Discovered LoRA target modules: {actual_target_modules}")
+    #print(f"Total LoRA target modules: {len(actual_target_modules)}")
 
     peft_config = LoraConfig(
         target_modules=actual_target_modules,
         lora_dropout=0.1,
         bias="none",
-        r=4,
+        r=2,
         lora_alpha=16,
         task_type=None
     )
-
 
     model_with_lora = get_peft_model(model, peft_config)
     model_with_lora.print_trainable_parameters()

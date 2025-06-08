@@ -67,7 +67,7 @@ class hourglass(nn.Module):
         self.feature_att_up_8 = FeatureAtt(in_channels*2, 64)
 
     def forward(self, x, features):
-        print(f"Input x shape: {x.shape}")
+        #print(f"Input x shape: {x.shape}")
         conv0 = self.conv0(x)
         
         conv0 = self.feature_att_4(conv0, features[0])
@@ -82,10 +82,6 @@ class hourglass(nn.Module):
         conv3 = self.feature_att_32(conv3, features[3])
 
         conv3_up = self.conv3_up(conv3)
-        
-        if conv3_up.shape[2:] != conv2.shape[2:]:
-            conv3_up = F.interpolate(conv3_up, size=conv2.shape[2:], mode='trilinear')
-            print(f"conv3_up resized to match conv2 shape: {conv3_up.shape}")
         conv2 = torch.cat((conv3_up, conv2), dim=1)
         # Asegurar que conv3_up tenga el mismo tamaño que conv2
         
