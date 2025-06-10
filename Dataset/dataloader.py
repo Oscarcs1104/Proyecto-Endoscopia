@@ -5,9 +5,8 @@ import torchvision.transforms as transforms
 import torchvision.transforms.functional as F
 from torch.utils.data import DataLoader, random_split
 
-
 from core.utils.utils_dataloader import get_scared_file_pairs
-from core.utils.utils_dataloader import read_image
+from core.utils.utils_dataloader import read_image, read_depth_map
 
 class RandomFlip:
     """Random horizontal or vertical flip"""
@@ -63,7 +62,7 @@ class SCARED_IGEV(Dataset):
         
         if self.training:
             self.left_paths, self.right_paths = get_scared_file_pairs(root_path, training=training)
-            self.gt_paths = None # No ground truth needed for training
+            self.gt_paths = None 
         else:
             self.left_paths, self.right_paths, self.gt_paths = get_scared_file_pairs(root_path, training=training)
 
@@ -72,10 +71,9 @@ class SCARED_IGEV(Dataset):
             transforms.Resize((256, 320)),
             transforms.ToTensor()
         ])
-
         """
         self.transform_train  = transforms.Compose([
-            #RandomFlip(horizontal=True, vertical=True),
+            RandomFlip(horizontal=True, vertical=True),
             transforms.ColorJitter(
                 brightness=(0.7, 1.4),
                 contrast=(0.7, 1.4),
@@ -84,14 +82,13 @@ class SCARED_IGEV(Dataset):
             )
         ])
         """
-        """
+        
         self.stereo_jitter = StereoColorJitter(
-            brightness=(0.9, 1.0),
-            contrast=(0.9, 1.0),
-            saturation=(0.9, 1.0),
-            hue=(0, 0)
+            brightness=(0.8, 1.2),
+            contrast=(0.8, 1.2),
+            saturation=(0.8, 1.2),
+            hue=(-0.1, 0.1)
         )
-        """
         
         self.transform_gt = transforms.Compose([
             transforms.Resize((256, 320)), # Ensure ground truth matches image size
@@ -114,7 +111,7 @@ class SCARED_IGEV(Dataset):
             return left_tensor, right_tensor
 
         else:
-            gt_img = read_image(self.gt_paths[idx])
+            gt_img = read_depth_map(self.gt_paths[idx])
             gt_tensor = self.transform_gt(gt_img)
 
             return left_tensor, right_tensor, gt_tensor

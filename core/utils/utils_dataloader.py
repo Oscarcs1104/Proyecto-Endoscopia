@@ -1,5 +1,7 @@
+import random
 import os
-from PIL import Image
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 def is_image_file(filename):
     IMG_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff')
@@ -9,6 +11,11 @@ def is_image_file(filename):
 def read_image(image_path):
     """Reads an image from the given path and returns a PIL Image."""
     return Image.open(image_path).convert("RGB")
+
+def read_depth_map(depth_map_path):
+    """Reads a depth map from the given path and returns a PIL Image."""
+    # Assuming depth maps are stored as PNG files
+    return Image.open(depth_map_path).convert("L")  # Convert to grayscale for depth maps
 
 def get_scared_file_pairs(root_path, training=True):
     """
@@ -90,13 +97,21 @@ def get_scared_file_pairs(root_path, training=True):
                 if os.path.isdir(left_dir_gt):
                     for filename in sorted(os.listdir(left_dir_gt)):
                         if is_image_file(filename):
-                            depth_map_path = os.path.join(rectified_depth_maps_path, filename)
+                            depth_map_path = os.path.join(left_dir_gt, filename) #os.path.join(rectified_depth_maps_path, filename)
                             ground_truth_images.append(depth_map_path)
+                        else:
+                            print(filename)
                 else:
                     print(f'  Warning: Ground truth directory not found: {rectified_depth_maps_path}. Skipping ground truth for this keyframe.')
 
     # Return based on the training flag
     if training:
-        return left_images[1500:1600] , right_images[1500:1600]
+
+        idx = list(range(len(left_images)))
+        random.shuffle(idx)
+        left_images = [ left_images[i] for i in idx ]
+        right_images = [ right_images[i] for i in idx ]
+
+        return left_images[:2000], right_images[:2000]
     else:
-        return left_images, right_images, ground_truth_images
+        return left_images[:200], right_images[:200], ground_truth_images[:200]

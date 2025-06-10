@@ -22,15 +22,15 @@ def Args():
     parser.add_argument('--batch_size', type=int, default=1, help="batch size used during training.")
     parser.add_argument('--batch_size_evaluation', type=int, default=3, help="batch size used during evaluation.")
     parser.add_argument('--train_datasets', default='sceneflow', choices=['sceneflow', 'kitti', 'middlebury_train', 'middlebury_finetune', 'eth3d_train', 'eth3d_finetune'], help="training datasets.")
-    parser.add_argument('--lr', type=float, default=2e-5, help="max learning rate.")
+    parser.add_argument('--lr', type=float, default=1e-4, help="max learning rate.")
     parser.add_argument('--num_steps', type=int, default=200000, help="length of training schedule.")
     parser.add_argument('--epochs', type=int, default=5, help="Epochs for training.")
-    parser.add_argument('--image_size', type=int, nargs='+', default=[256, 350], help="size of the random image crops used during training.")
+    parser.add_argument('--image_size', type=int, nargs='+', default=[256, 320], help="size of the random image crops used during training.")
     parser.add_argument('--train_iters', type=int, default=10, help="number of updates to the disparity field in each forward pass.")
     parser.add_argument('--wdecay', type=float, default=.00001, help="Weight decay in optimizer.")
 
     # Validation parameters
-    parser.add_argument('--valid_iters', type=int, default=16, help='number of flow-field updates during validation forward pass')
+    parser.add_argument('--valid_iters', type=int, default=32, help='number of flow-field updates during validation forward pass')
 
     # Architecure choices
     parser.add_argument('--corr_levels', type=int, default=2, help="number of levels in the correlation pyramid")

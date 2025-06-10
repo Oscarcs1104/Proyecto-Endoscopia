@@ -48,11 +48,14 @@ def IGEVStereoLoraModel(arguments):
         target_modules=actual_target_modules,
         lora_dropout=0.1,
         bias="none",
-        r=2,
+        r=4,
         lora_alpha=16,
         task_type=None
     )
 
     model_with_lora = get_peft_model(model, peft_config)
+
+    #for name, param in model_with_lora.named_parameters():
+    #    param.requires_grad = "lora_" in name
     model_with_lora.print_trainable_parameters()
     return model_with_lora

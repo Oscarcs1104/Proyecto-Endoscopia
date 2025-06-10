@@ -23,7 +23,7 @@ def disparity_to_depth(disparity, focal_length, baseline):
 
     return depth
 
-def photometric_loss(img1, img2, mask=None, alpha=0.85, eps=1e-8):
+def photometric_loss(img1, img2, mask=None, alpha=0.80, eps=1e-8):
     """
     Photometric loss combining SSIM and L1.
 
@@ -139,8 +139,8 @@ def train_stereo_model_lora(args):
 
                 #with autocast(dtype=torch.float32): #Try full precision first
                 disp_list = model_with_lora(img_left, img_right)  # [B, 1, H, W]
-                img_right_warped, mask = stereo_warp(img_right, disp_list) #img_right_warped == synthetic left
-                loss_photo = photometric_loss(img_right, img_right_warped, mask=mask)
+                img_right_warped, mask = stereo_warp(img_right, disp_list)
+                loss_photo = photometric_loss(img_left, img_right_warped, mask=mask)
                 smooth_loss = smoothness_loss(disp_list, img_left)
 
                 loss = loss_photo + 0.3 * smooth_loss  
@@ -153,12 +153,11 @@ def train_stereo_model_lora(args):
                     optimizer.step()
                     optimizer.zero_grad()
 
-                """
-                if (batch_idx + 1) % accum_steps == 0:
-                    scaler.step(optimizer)
-                    scaler.update()
-                    optimizer.zero_grad()
-                """
+                #if (batch_idx + 1) % accum_steps == 0:
+                #    scaler.step(optimizer)
+                #    scaler.update()
+                #    optimizer.zero_grad()
+
                 lr = optimizer.param_groups[0]['lr']
 
                 total_norm = 0.0
@@ -169,7 +168,7 @@ def train_stereo_model_lora(args):
                 total_norm = total_norm ** 0.5
                 wandb.log({"gradient norm": total_norm,
                         "epoch": epoch_idx+1,
-                        "loss": loss.item()*accum_steps,
+                        "loss": loss.item(),
                         "lr": lr,})
                 #print(f"Epoch [{epoch_idx+1}/{args.epochs}], Step [{batch_idx+1}], Loss: {loss.item()*accum_steps:.4f}, lr: {lr:.6f}")
 
@@ -178,13 +177,8 @@ def train_stereo_model_lora(args):
                     left_np = img_left[0].detach().cpu().numpy().transpose(1,2,0)
                     right_np = img_right[0].detach().cpu().numpy().transpose(1,2,0)
                     warp_np = img_right_warped[0].detach().cpu().numpy().transpose(1,2,0)
-                    disp_np = disp_list[0,0].detach().cpu().numpy()
-
-                    # Chequeo de valores válidos
-                    if not np.isfinite(disp_np).all() or (np.max(disp_np) - np.min(disp_np) < 1e-6):
-                        disp_norm = np.zeros_like(disp_np)
-                    else:
-                        disp_norm = (disp_np - np.min(disp_np)) / (np.max(disp_np) - np.min(disp_np) + 1e-8)
+                    disp_np = disp_list[0][0].detach().cpu().numpy()
+                    disp_norm = (disp_np - np.min(disp_np)) / (np.max(disp_np) - np.min(disp_np) + 1e-8)
 
                     disp_color = matplotlib.cm.get_cmap('Spectral')(disp_norm)[:, :, :3]  # (H, W, 3)
                     disp_color = (disp_color * 255).astype(np.uint8)
@@ -219,8 +213,20 @@ def evaluate_stereo_lora(args, model, val_loader):
 
             disp_pred = model(img_left, img_right)
             disp2depth = disparity_to_depth(disp_pred, focal_length=1035, baseline=4.143) #baseline in mm, focal_length in px
+            depth_np = disp2depth[0][0].detach().cpu().numpy()
+            depth_norm = (depth_np - np.min(depth_np)) / (np.max(depth_np) - np.min(depth_np) + 1e-8)
+            depth_color = matplotlib.cm.get_cmap('Spectral')(depth_norm)[:, :, :3]  # (H, W, 3)
+            depth_color = (depth_color * 255).astype(np.uint8)
 
-            metrics_calculator.update(pred_depth=disp2depth, target_depth=gt)
+            #print(gt.max(), gt.min())
+            metrics_calculator.update(pred_depth=disp2depth.squeeze(0), target_depth=gt.squeeze(0))
+
+            wandb.log({
+                "Validation/Left Image": wandb.Image(img_left[0].detach().cpu().numpy().transpose(1, 2, 0), caption="Left Image"),
+                "Validation/Right Image": wandb.Image(img_right[0].detach().cpu().numpy().transpose(1, 2, 0), caption="Right Image"),
+                "Validation/Depth": wandb.Image(depth_color, caption="Predicted Depth"),
+                #"Validation/GT Depth": wandb.Image(gt[0].detach().cpu().numpy(), caption="Ground Truth Depth")
+            })
 
         final_metrics = metrics_calculator.compute_metrics()
         print("\n--- Validation Metrics ---")
