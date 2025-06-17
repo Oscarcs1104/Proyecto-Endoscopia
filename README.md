@@ -1,4 +1,5 @@
 Unsupervised Stereo Vision Depth Estimation in Endoscopy
+
 This project focuses on estimating depth from stereo endoscopy images using an unsupervised learning approach. The goal is to adapt a state-of-the-art stereo matching model (IGEV++) to the medical domain of endoscopic imaging, without relying on ground-truth depth labels.
 
 🔍 Overview
